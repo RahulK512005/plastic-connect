@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-import { generateOrderNumber, getApplicableDiscount, calculateTotal } from '@/lib/order-utils';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseClient } from '@/lib/supabase-server';
+import { generateOrderNumber, calculateTotal } from '@/lib/order-utils';
 
 interface CreateOrderRequest {
   listingId: string;
@@ -38,12 +33,20 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get applicable discount
-    const discountPercentage = await getApplicableDiscount(
-      plasticType,
-      gradeQuality,
-      quantity
-    );
+    const supabase = getSupabaseClient();
+
+    // Get applicable discount from database
+    const { data: discountData } = await supabase
+      .from('discount_tiers')
+      .select('discount_percentage')
+      .eq('plastic_type', plasticType)
+      .eq('grade_quality', gradeQuality)
+      .lte('min_quantity_kg', quantity)
+      .or(`max_quantity_kg.is.null,max_quantity_kg.gte.${quantity}`)
+      .order('discount_percentage', { ascending: false })
+      .limit(1);
+
+    const discountPercentage = discountData?.[0]?.discount_percentage || 0;
 
     // Calculate totals
     const { baseAmount, discountAmount, totalAmount } = calculateTotal(
@@ -74,7 +77,7 @@ export async function POST(request: NextRequest) {
       .select();
 
     if (error) {
-      console.error('Database error:', error);
+      console.error('[v0] Database error:', error);
       return NextResponse.json(
         { error: 'Failed to create order' },
         { status: 500 }

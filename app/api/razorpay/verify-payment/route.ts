@@ -1,11 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '@/lib/supabase-server';
 import { verifyPaymentSignature, fetchPaymentDetails } from '@/lib/razorpay';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 interface VerifyPaymentRequest {
   razorpayOrderId: string;
@@ -30,6 +25,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const supabase = getSupabaseClient();
 
     // Verify signature
     const isSignatureValid = verifyPaymentSignature(

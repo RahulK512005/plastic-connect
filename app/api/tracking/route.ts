@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseClient } from '@/lib/supabase-server';
 
 interface GetTrackingRequest {
   orderId: string;
@@ -32,6 +27,8 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const supabase = getSupabaseClient();
 
     // Fetch shipment details
     const { data: shipment, error: shipmentError } = await supabase
@@ -85,6 +82,7 @@ export async function GET(request: NextRequest) {
  */
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
     const body: UpdateTrackingRequest = await request.json();
     const { shipmentId, status, location, notes, estimatedDelivery } = body;
 

@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { X, Loader2, TrendingDown, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { getApplicableDiscount } from '@/lib/order-utils'
+import { getApplicableDiscount } from '@/lib/discount-client'
 
 interface MakeOfferModalProps {
   listing: {

@@ -1,10 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { getSupabaseClient } from '@/lib/supabase-server';
 
 interface PlasticAnalysisRequest {
   imageBase64: string;
@@ -96,6 +91,7 @@ export async function POST(request: NextRequest) {
     const analysisResult = await analyzePlasticImage(imageBase64, plasticType);
 
     // Store analysis in database
+    const supabase = getSupabaseClient();
     const { data, error } = await supabase
       .from('plastic_analysis')
       .insert({

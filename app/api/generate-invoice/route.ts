@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getSupabaseClient } from '@/lib/supabase-server';
 import { generateInvoiceNumber } from '@/lib/order-utils';
 import { generateInvoiceHTML } from '@/lib/pdf-generator';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
 
 interface GenerateInvoiceRequest {
   orderId: string;
@@ -23,6 +18,8 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    const supabase = getSupabaseClient();
 
     // Fetch order details
     const { data: orders, error: orderError } = await supabase

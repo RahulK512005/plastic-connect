@@ -1,9 +1,21 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+// Lazy-load Supabase client to avoid environment variable issues
+let supabaseInstance: ReturnType<typeof createClient> | null = null;
+
+function getSupabaseClient() {
+  if (!supabaseInstance) {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    if (!url || !key) {
+      throw new Error('Supabase environment variables are not set');
+    }
+    
+    supabaseInstance = createClient(url, key);
+  }
+  return supabaseInstance;
+}
 
 /**
  * Generate a unique order number
@@ -46,21 +58,27 @@ export async function getApplicableDiscount(
   gradeQuality: string,
   quantityKg: number
 ): Promise<number> {
-  const { data, error } = await supabase
-    .from('discount_tiers')
-    .select('discount_percentage')
-    .eq('plastic_type', plasticType)
-    .eq('grade_quality', gradeQuality)
-    .lte('min_quantity_kg', quantityKg)
-    .or(`max_quantity_kg.is.null,max_quantity_kg.gte.${quantityKg}`)
-    .order('discount_percentage', { ascending: false })
-    .limit(1);
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('discount_tiers')
+      .select('discount_percentage')
+      .eq('plastic_type', plasticType)
+      .eq('grade_quality', gradeQuality)
+      .lte('min_quantity_kg', quantityKg)
+      .or(`max_quantity_kg.is.null,max_quantity_kg.gte.${quantityKg}`)
+      .order('discount_percentage', { ascending: false })
+      .limit(1);
 
-  if (error || !data || data.length === 0) {
+    if (error || !data || data.length === 0) {
+      return 0;
+    }
+
+    return data[0].discount_percentage;
+  } catch (error) {
+    console.error('[v0] Error fetching discount:', error);
     return 0;
   }
-
-  return data[0].discount_percentage;
 }
 
 /**
