@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
-import { X, Loader2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { X, Loader2, TrendingDown, Zap } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { getApplicableDiscount } from '@/lib/order-utils'
 
 interface MakeOfferModalProps {
   listing: {
@@ -11,6 +12,8 @@ interface MakeOfferModalProps {
     quantity_kg: number
     price_per_kg: number
     location: string
+    grade_quality?: string
+    purity_percentage?: number
   }
   onClose: () => void
   onSuccess: () => void
@@ -26,40 +29,70 @@ export function MakeOfferModal({
   const [notes, setNotes] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [discountPercentage, setDiscountPercentage] = useState(0)
+  const [showPaymentFlow, setShowPaymentFlow] = useState(false)
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState<string | null>(null)
 
-  const totalPrice = (parseFloat(quantity) || 0) * (parseFloat(pricePerKg) || 0)
+  // Calculate discount based on quantity
+  useEffect(() => {
+    const calculateDiscount = async () => {
+      if (parseFloat(quantity) > 0) {
+        const discount = await getApplicableDiscount(
+          listing.plastic_type,
+          listing.grade_quality || 'A',
+          parseFloat(quantity)
+        )
+        setDiscountPercentage(discount)
+      }
+    }
+    calculateDiscount()
+  }, [quantity, listing.plastic_type, listing.grade_quality])
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const baseAmount = (parseFloat(quantity) || 0) * (parseFloat(pricePerKg) || 0)
+  const discountAmount = (baseAmount * discountPercentage) / 100
+  const totalPrice = baseAmount - discountAmount
+
+  const handleCreateOrder = async () => {
     setError('')
     setIsLoading(true)
 
     try {
-      const response = await fetch('/api/offers', {
+      // Step 1: Create order
+      const orderResponse = await fetch('/api/generate-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          buyer_id: 'buyer-001', // In production, get from auth
-          listing_id: listing.id,
-          quantity_kg: parseFloat(quantity),
-          price_per_kg: parseFloat(pricePerKg),
-          notes,
+          listingId: listing.id,
+          buyerId: 'buyer-001', // In production, get from auth
+          sellerId: 'seller-001', // In production, get from listing
+          quantity: parseFloat(quantity),
+          basePrice: parseFloat(pricePerKg),
+          plasticType: listing.plastic_type,
+          gradeQuality: listing.grade_quality || 'A',
         }),
       })
 
-      if (!response.ok) {
-        const data = await response.json()
-        throw new Error(data.error || 'Failed to create offer')
+      if (!orderResponse.ok) {
+        const data = await orderResponse.json()
+        throw new Error(data.error || 'Failed to create order')
       }
 
-      onSuccess()
-      onClose()
+      const orderData = await orderResponse.json()
+      const orderId = orderData.order.id
+
+      // Step 2: Show payment flow
+      setShowPaymentFlow(true)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred')
-      console.error('[v0] Error creating offer:', err)
+      console.error('[v0] Error creating order:', err)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await handleCreateOrder()
   }
 
   return (
@@ -161,13 +194,43 @@ export function MakeOfferModal({
             />
           </div>
 
-          {/* Total Price */}
-          <div className="bg-gradient-success rounded-lg p-4 border border-[#00D68F] border-opacity-30">
-            <p className="text-sm text-gray-300 mb-1">Total Offer Price</p>
-            <p className="text-3xl font-bold text-[#00D68F]">
-              ₹{totalPrice.toFixed(2)}
-            </p>
+          {/* Price Breakdown */}
+          <div className="bg-[#0F1419] rounded-lg p-4 border border-[#2A3240] space-y-3">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-400">Base Amount</span>
+              <span className="text-white font-semibold">₹{baseAmount.toFixed(2)}</span>
+            </div>
+            
+            {discountPercentage > 0 && (
+              <>
+                <div className="border-t border-[#2A3240]" />
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-gray-400 flex items-center gap-1">
+                    <TrendingDown className="w-4 h-4 text-[#00D68F]" />
+                    Bulk Discount ({discountPercentage}%)
+                  </span>
+                  <span className="text-[#00D68F] font-semibold">-₹{discountAmount.toFixed(2)}</span>
+                </div>
+              </>
+            )}
+
+            <div className="border-t border-[#00D68F] border-opacity-30 pt-3">
+              <p className="text-sm text-gray-300 mb-1">Total Amount</p>
+              <p className="text-3xl font-bold text-[#00D68F]">
+                ₹{totalPrice.toFixed(2)}
+              </p>
+            </div>
           </div>
+
+          {/* Discount Info */}
+          {discountPercentage > 0 && (
+            <div className="bg-[#1A4D2E] bg-opacity-30 border border-[#00D68F] rounded-lg p-3 flex items-start gap-2">
+              <Zap className="w-4 h-4 text-[#00D68F] flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-[#00D68F]">
+                Great deal! Buying {parseFloat(quantity).toFixed(1)} kg qualifies you for {discountPercentage}% bulk discount.
+              </p>
+            </div>
+          )}
 
           {/* Buttons */}
           <div className="flex gap-3 pt-4">
@@ -187,10 +250,12 @@ export function MakeOfferModal({
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Submitting...
+                  Creating Order...
                 </>
               ) : (
-                'Submit Offer'
+                <>
+                  Proceed to Payment →
+                </>
               )}
             </Button>
           </div>

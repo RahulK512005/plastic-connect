@@ -166,8 +166,14 @@ export function BuyerDashboard() {
           </Button>
         </div>
 
-        {/* Listings */}
-        <div className="space-y-3 mb-12">
+        {/* Live Feed Title */}
+        <div className="mb-8">
+          <h2 className="text-2xl font-bold text-[#E8ECEF] mb-2">LIVE FEED</h2>
+          <p className="text-[#8A94A6]">Real-time plastic feedstock from verified collectors</p>
+        </div>
+
+        {/* Listings Grid */}
+        <div className="mb-12">
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="w-6 h-6 animate-spin text-[#00D68F]" />
@@ -177,45 +183,81 @@ export function BuyerDashboard() {
               <p className="text-[#8A94A6]">No listings available. Check back soon!</p>
             </Card>
           ) : (
-            filteredListings.map((listing) => (
-              <Card
-                key={listing.id}
-                className="border-[#2A3340] bg-[#141922] p-6 hover:border-[#3A4350] transition-colors cursor-pointer"
-              >
-                <div className="flex gap-6">
-                  {/* Image placeholder */}
-                  <div className="w-24 h-24 rounded-lg bg-gradient-to-br from-[#1C222E] to-[#0F1419] flex items-center justify-center text-4xl flex-shrink-0">
-                    ♻️
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 flex items-center justify-between">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold text-[#E8ECEF]">{listing.plastic_type}</h3>
-                        <span className="bg-[#00D68F] text-[#0A0E14] text-xs font-bold px-2 py-0.5 rounded">
-                          {listing.plastic_type}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredListings.map((listing) => (
+                <div key={listing.id} onClick={() => handleMakeOffer(listing)}>
+                  <div className="bg-[#141922] rounded-xl border border-[#2A3340] overflow-hidden hover:border-[#3A4350] transition-all">
+                    {/* Image Container */}
+                    <div className="relative h-40 bg-gradient-to-br from-[#1C222E] to-[#0F1419] flex items-center justify-center">
+                      <div className="text-6xl opacity-40">♻️</div>
+                      
+                      {/* Grade Badge */}
+                      <div className="absolute top-3 right-3">
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold border ${
+                          listing.grade === 'A' ? 'bg-[#00D68F] text-[#0A0E14] border-[#00D68F]' :
+                          listing.grade === 'B' ? 'bg-[#0091FF] text-white border-[#0091FF]' :
+                          'bg-[#FF6B35] text-white border-[#FF6B35]'
+                        }`}>
+                          {listing.grade || 'Grade A'}
                         </span>
-                        <span className="text-[#0091FF]">✓</span>
                       </div>
-                      <p className="text-[#8A94A6] text-sm">
-                        {listing.quantity_kg}kg • ₹{listing.price_per_kg}/kg • {listing.location}
-                      </p>
-                      {listing.description && (
-                        <p className="text-[#8A94A6] text-xs">{listing.description}</p>
-                      )}
+
+                      {/* Posted Time */}
+                      <div className="absolute bottom-3 left-3 bg-black/60 text-white px-2 py-1 rounded-full text-xs">
+                        Posted {listing.posted_time || '1h ago'}
+                      </div>
                     </div>
 
-                    <Button
-                      onClick={() => handleMakeOffer(listing)}
-                      className="bg-[#0091FF] hover:bg-[#0078D4] text-white glow-blue"
-                    >
-                      Make Offer
-                    </Button>
+                    {/* Content */}
+                    <div className="p-4 space-y-3">
+                      {/* Collector and Type */}
+                      <div>
+                        <p className="text-[#8A94A6] text-xs font-medium">{listing.collector_name || 'Collector'}</p>
+                        <h3 className="text-lg font-bold text-[#E8ECEF]">{listing.plastic_type}</h3>
+                      </div>
+
+                      {/* Metrics Grid */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* Purity */}
+                        <div className="bg-[#0F1419] p-2 rounded-lg border border-[#2A3340]">
+                          <p className="text-[#8A94A6] text-xs mb-1">Purity</p>
+                          <p className="text-[#00D68F] font-bold">{listing.purity || 94}%</p>
+                        </div>
+
+                        {/* Weight */}
+                        <div className="bg-[#0F1419] p-2 rounded-lg border border-[#2A3340]">
+                          <p className="text-[#8A94A6] text-xs mb-1">Weight</p>
+                          <p className="text-[#0091FF] font-bold">{(listing.quantity_kg / 1000).toFixed(1)}T</p>
+                        </div>
+                      </div>
+
+                      {/* Location */}
+                      <p className="text-[#8A94A6] text-xs flex items-center gap-1">
+                        📍 {listing.location}
+                      </p>
+
+                      {/* Price and Button */}
+                      <div className="pt-2 border-t border-[#2A3340] space-y-2">
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-[#8A94A6] text-xs">Asking Price</span>
+                          <div className="flex items-baseline gap-1">
+                            <span className="text-2xl font-bold text-[#00D68F]">₹{listing.price_per_kg}</span>
+                            <span className="text-[#8A94A6] text-xs">/kg</span>
+                          </div>
+                        </div>
+
+                        <Button
+                          onClick={() => handleMakeOffer(listing)}
+                          className="w-full bg-[#00D68F] hover:bg-[#00C77F] text-[#0A0E14] font-semibold py-2 rounded-lg transition-all"
+                        >
+                          Place Bid
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              </Card>
-            ))
+              ))}
+            </div>
           )}
         </div>
 
